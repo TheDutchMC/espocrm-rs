@@ -1,8 +1,12 @@
 [package]
 name = "espocrm-rs"
 version = "0.1.0"
-authors = ["Tobias de Bruijn <github@thedutchmc.nl>"]
+authors = ["Tobias de Bruijn <t.debruijn@array21.dev>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TheDutchMC/espocrm-rs"
+description = "A Rust implementation of the EspoCRM PHP API Client"
+readme = "README.md"
 
 [dependencies]
 serde = "1.0.125"
