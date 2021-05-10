@@ -3,7 +3,7 @@ A Rust implementation of the EspoCRM PHP API Client. You can find this client [h
 
 For information on how to use this crate, refer to crates.io.
 
-# #Dependencies
+## Dependencies
 This crate depends on the following crates:
 - serde
 - serde_php
