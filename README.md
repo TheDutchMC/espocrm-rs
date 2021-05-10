@@ -14,4 +14,4 @@ This crate depends on the following crates:
 ## Licence
 `espocrm-rs` is distributed under the terms of both the MIT license and the Apache License (Version 2.0).
 
-See [LICENSE-APACHE](LICENCE-APACHE) and [LICENSE-MIT](LICENCE-MIT), and [COPYRIGHT](COPYRIGHT) for details.
+See [LICENSE-APACHE](https://github.com/TheDutchMC/espocrm-rs/blob/master/LICENCE-APACHE) and [LICENSE-MIT](https://github.com/TheDutchMC/espocrm-rs/blob/master/LICENCE-MIT), and [COPYRIGHT](https://github.com/TheDutchMC/espocrm-rs/blob/master/COPYRIGHT) for details.
