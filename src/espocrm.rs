@@ -1,6 +1,11 @@
 use reqwest::Method;
-use crypto::mac::Mac;
-use std::future::Future;
+use sha2::Sha256;
+use hmac::{Hmac, NewMac, Mac};
+use std::collections::HashMap;
+use std::any::Any;
+use serde::Serialize;
+
+type HmacSha256 = Hmac<Sha256>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EspoApiClient {
@@ -85,7 +90,7 @@ impl EspoApiClient {
     /// * method: The HTTP method to be used. E.g GET or POST
     /// * action: On what EspoCRM Object should the action be performed on. E.g "Contact" or "Contact/ID". Essentially this is everything after "/api/v1/" in the URL.
     /// * data: The data to send. If the request method is GET, this will automatically be serialized to a query parameter String. If the request method is POST, it will be serialized to JSON and send as the request body.
-    pub fn request<T: serde::Serialize + Clone>(&self, method: reqwest::Method, action: String, data: Option<T>) -> impl Future<Output = reqwest::Result<reqwest::Response>> {
+    pub async fn request<T: Serialize + Clone>(&self, method: reqwest::Method, action: String, data: Option<T>) -> reqwest::Result<reqwest::Response> {
         let mut url = self.normalize_url(action.clone());
 
         url = if data.is_some() && method == Method::GET {
@@ -108,13 +113,20 @@ impl EspoApiClient {
         //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
             let str = format!("{} /{}", method.clone().to_string(), action.clone());
+            println!("{}", &str);
 
-            let mut hmac = crypto::hmac::Hmac::new(crypto::sha2::Sha256::new(), self.secret_key.clone().unwrap().as_bytes());
-            hmac.input(str.as_bytes());
-            let result = hmac.result();
+            let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes()).expect("Unable to create Hmac instance. Is your key valid?");
+            mac.update(str.as_bytes());
+            let mac_result = mac.finalize().into_bytes();
 
-            let auth_part = format!("{}{}{}", base64::encode(self.api_key.clone().unwrap()), base64::encode(":".as_bytes()), base64::encode(result.code()));
+            let auth_part = format!("{}{}{}",
+                                    base64::encode(self.api_key.clone().unwrap().as_bytes()),
+                                    "6", //: in base64, for some reason this works, and turning ':' into base64 does not.
+                                    base64::encode(mac_result));
+            println!("auth: {}", &auth_part);
+
             request_builder = request_builder.header("X-Hmac-Authorization", auth_part);
+
 
         //Basic api key authentication
         } else if self.api_key.is_some() {
@@ -129,6 +141,6 @@ impl EspoApiClient {
         }
 
         let response = request_builder.send();
-        response
+        response.await
     }
 }
