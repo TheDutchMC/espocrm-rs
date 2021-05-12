@@ -25,7 +25,26 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&format!("order={}", input.order.unwrap().to_string().to_lowercase()))
+        let lower_camel_case_type = {
+            let mut builder = String::new();
+            let mut is_first = true;
+            for c in input.order.unwrap().to_string().chars() {
+                if is_first {
+                    let mut x = String::new();
+                    x.push(c);
+                    let x_upper = x.to_lowercase();
+
+                    builder.push_str(&x_upper);
+                    is_first = false;
+                } else {
+                    builder.push(c)
+                }
+            }
+
+            builder
+        };
+
+        builder.push_str(&format!("order={}", lower_camel_case_type))
     }
 
     if input.offset.is_some() {
