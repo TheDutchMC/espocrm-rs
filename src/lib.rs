@@ -92,6 +92,9 @@
 //! These structs weren't pulled out of thin air. Everything you need to know about this is described [here](https://docs.espocrm.com/development/api-search-params/)
 
 mod espocrm;
+mod espocrm_types;
+mod serializer;
+
 pub use espocrm::*;
 
 #[cfg(test)]
