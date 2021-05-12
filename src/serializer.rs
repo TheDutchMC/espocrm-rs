@@ -1,5 +1,4 @@
 use crate::espocrm_types::{Params, Value};
-use std::collections::HashMap;
 use urlencoding::encode;
 
 pub fn serialize(input: Params) -> Result<String, &'static str> {
@@ -10,7 +9,7 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&input.select.unwrap())
+        builder.push_str(&format!("select={}", input.select.unwrap()))
     }
 
     if input.order_by.is_some() {
@@ -18,7 +17,15 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&input.order_by.unwrap().to_string())
+        builder.push_str(&format!("orderBy={}", input.order_by.unwrap().to_string()))
+    }
+
+    if input.order.is_some() {
+        if builder.len() > 0 {
+            builder.push('&');
+        }
+
+        builder.push_str(&format!("order={}", input.order.unwrap().to_string().to_lowercase()))
     }
 
     if input.offset.is_some() {
@@ -26,24 +33,11 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&input.offset.unwrap().to_string())
+        builder.push_str(&format!("offset={}", input.offset.unwrap().to_string()))
     }
 
     if input.bool_filter_list.is_some() {
-        if builder.len() > 0 {
-            builder.push('&');
-        }
-
-        let mut bool_filter_as_vals = Vec::new();
-        for v in input.bool_filter_list.unwrap() {
-            bool_filter_as_vals.push(Value::string(v));
-        }
-
-        let mut base_params = Vec::default();
-        base_params.push("boolFilterList".to_string());
-        let str = build_url_from_vec(base_params, &bool_filter_as_vals)?;
-
-        builder.push_str(&str);
+        todo!();
     }
 
     if input.max_size.is_some() {
@@ -51,7 +45,7 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&input.max_size.unwrap().to_string())
+        builder.push_str(&format!("maxSize={}", input.max_size.unwrap().to_string()));
     }
 
     if input.primary_filter.is_some() {
@@ -59,7 +53,7 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
-        builder.push_str(&input.primary_filter.unwrap())
+        builder.push_str(&format!("primaryFilter={}", input.primary_filter.unwrap()));
     }
 
     if input.r#where.is_some() {
@@ -67,159 +61,87 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
             builder.push('&');
         }
 
+        let mut i = 0;
         for v in input.r#where.unwrap() {
-            if v.value.is_some() {
-                let v_val = v.value.unwrap();
-                match v_val {
-                    Value::Map(v_inner) => {
-                        let mut base_params = Vec::default();
-                        base_params.push("where".to_string());
-                        let str = build_url_from_map(base_params, v_inner.as_ref().unwrap())?;
-                        builder.push_str(&str);
+            if i > 0 {
+                builder.push('&');
+            }
+
+            let lower_camel_case_type = {
+                let mut builder = String::new();
+                let mut is_first = true;
+                for c in v.r#type.to_string().chars() {
+                    if is_first {
+                        let mut x = String::new();
+                        x.push(c);
+                        let x_upper = x.to_lowercase();
+
+                        builder.push_str(&x_upper);
+                        is_first = false;
+                    } else {
+                        builder.push(c)
                     }
-                    Value::Array(v_inner) => {
-                        let mut base_params = Vec::default();
-                        base_params.push("where".to_string());
-                        let str = build_url_from_vec(base_params, v_inner.as_ref().unwrap())?;
-                        builder.push_str(&str)
+                }
+
+                builder
+            };
+
+            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][type]", i)), lower_camel_case_type));
+            builder.push('&');
+            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][attribute]", i)), v.attribute));
+
+            if v.value.is_some() {
+                let val_unwrapped = v.value.unwrap();
+                match val_unwrapped {
+                    Value::Array(arr) => {
+                        let arr_1 = arr.unwrap();
+
+                        let mut j = 0;
+                        for elem in arr_1 {
+                            let elem_v_inner = match elem {
+                                Value::String(inner) => {
+                                    inner.unwrap()
+                                }
+                                Value::Integer(inner) => {
+                                    inner.unwrap().to_string()
+                                }
+                                Value::Boolean(inner) => {
+                                    inner.unwrap().to_string()
+                                }
+                                Value::Array(_) => {
+                                    unimplemented!();
+                                }
+                            };
+
+                            builder.push('&');
+                            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][value][{}]", i, j)), elem_v_inner));
+
+                            j+=1;
+                        }
                     }
                     _ => {
-                        let v_str = match v_val {
-                            Value::Boolean(v_inner) => {
-                                v_inner.as_ref().unwrap().to_string()
+                        let elem_v_inner = match val_unwrapped {
+                            Value::String(inner) => {
+                                inner.unwrap()
                             }
-                            Value::Integer(v_inner) => {
-                                v_inner.as_ref().unwrap().to_string()
+                            Value::Integer(inner) => {
+                                inner.unwrap().to_string()
                             }
-                            Value::String(v_inner) => {
-                                v_inner.as_ref().unwrap().to_string()
+                            Value::Boolean(inner) => {
+                                inner.unwrap().to_string()
                             }
-                            _ => { "".to_string() }
+                            _ => {panic!("Unreachable")}
                         };
 
-                        builder.push_str(&format!("{}={}", encode("where"), encode(&v_str)));
+                        builder.push('&');
+                        builder.push_str(&format!("{}={}", &encode(&format!("where[{}][value]", i)), elem_v_inner));
                     }
                 }
             }
+
+            i+=1;
         }
     }
 
     Ok(builder)
-}
-
-fn build_url_from_map(base_params: Vec<String>, map: &HashMap<String, Value>) -> Result<String, &'static str> {
-    let mut builder = String::new();
-
-    for (k, v) in map {
-        if builder.len() > 0 {
-            builder.push('&');
-        }
-
-        match v {
-            Value::Map(v_inner) => {
-                let mut base_param_2 = Vec::default();
-                concatenate_vec(&mut base_param_2, &base_params);
-                base_param_2.push(k.clone());
-                let str = build_url_from_map(base_param_2, v_inner.as_ref().unwrap())?;
-                builder.push_str(&str);
-            }
-            Value::Array(v_inner) => {
-                let mut base_param_2 = Vec::default();
-                concatenate_vec(&mut base_param_2, &base_params);
-                base_param_2.push(k.clone());
-                let str = build_url_from_vec(base_param_2, v_inner.as_ref().unwrap())?;
-                builder.push_str(&str)
-            },
-            _ => {
-                let v_str = match v {
-                    Value::Boolean(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    Value::Integer(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    Value::String(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    _ => { "".to_string() }
-                };
-
-                let token = format!("{}[{}]={}", get_base_param_string(&base_params), k.clone(), encode(&v_str));
-                builder.push_str(&token);
-            }
-        }
-    }
-
-    Ok(builder)
-}
-
-fn build_url_from_vec(base_params: Vec<String>, vec: &Vec<Value>) -> Result<String, &'static str> {
-    let mut builder = String::new();
-
-    let mut i = 0;
-    for v in vec {
-        i += 1;
-
-        if i > 0 {
-            builder.push('&');
-        }
-
-        match v {
-            Value::Map(v_inner) => {
-                let mut base_params_2 = Vec::new();
-                concatenate_vec(&mut base_params_2, &base_params);
-                base_params_2.push(i.to_string());
-
-                let str = build_url_from_map(base_params_2, v_inner.as_ref().unwrap())?;
-                builder.push_str(&str);
-            }
-            Value::Array(v_inner) => {
-                let mut base_params_2 = Vec::new();
-                concatenate_vec(&mut base_params_2, &base_params);
-                base_params_2.push(i.to_string());
-                let str = build_url_from_vec(base_params_2, v_inner.as_ref().unwrap())?;
-                builder.push_str(&str);
-            }
-            _ => {
-                let v_str = match v {
-                    Value::Boolean(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    Value::Integer(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    Value::String(v_inner) => {
-                        v_inner.as_ref().unwrap().to_string()
-                    }
-                    _ => { "".to_string() }
-                };
-
-                let token = format!("{}[{}]={}", get_base_param_string(&base_params), i.to_string(), encode(&v_str));
-                builder.push_str(&token);
-            }
-        }
-    }
-
-    Ok(builder)
-}
-
-fn get_base_param_string(base_params: &Vec<String>) -> String {
-    let mut builder = String::new();
-    for i in 0..base_params.len() {
-        let s = base_params.get(i).unwrap();
-        if i == 0 {
-            builder.push_str(s);
-        } else {
-            builder.push_str(&format!("[{}]", s))
-        }
-    }
-
-    builder
-}
-
-fn concatenate_vec<T: Clone>(vec1: &mut Vec<T>, vec2: &Vec<T>) {
-    for i in vec2.clone() {
-        let i_clone = i.clone();
-        vec1.push(i_clone);
-    }
 }

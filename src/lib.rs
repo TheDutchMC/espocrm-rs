@@ -38,7 +38,7 @@
 //!     .build();
 //! ```
 //!
-//! # Making a request
+//! # Making a GET request
 //! To make a request, you need to know a couple things:
 //! - The request method to use
 //! - On what to perform the request
@@ -46,47 +46,35 @@
 //!
 //! Most of these things are laid out pretty well in the EspoCRM API documentation [here](https://docs.espocrm.com/development/api/)
 //! ```rust
-//! use espocrm_rs::EspoApiClient;
+//! use espocrm_rs::{EspoApiClient, Params, Where, FilterType, Value, NoGeneric};
 //! use reqwest::Method;
-//! use serde::Serialize;
 //!
-//! #[derive(Serialize)]
-//! struct RequestData {
-//!     offset:     i64,
-//!
-//!     #[serde(rename(serialize = "where"))]
-//!     filter:     Vec<RequestFilter>,
-//!
-//!     #[serde(rename(serialzie = "orderBy"))]
-//!     order_by:   String,
-//!     order:      String
-//! }
-//!
-//! #[derive(Serialize)]
-//! struct RequestFilter {
-//!     #[serde(rename(serialize = "filterType"))]
-//!     filter_type:    String,
-//!     attribute:      String
-//! }
-//!
-//! let client = EspoApiClient::new("https://espocrm.example.com")
-//!     .set_api_key("Your API Key here")
-//!     .set_secret_key("Your API Secret")
+//! let params = Params::default()
+//!     .set_offset(0)
+//!     .set_where(vec![
+//!         Where {
+//!             r#type: FilterType::IsTrue,
+//!             attribute: "exampleField".to_string(),
+//!             value: None
+//!         },
+//!         Where {
+//!             r#type: FilterType::ArrayAnyOf,
+//!             attribute: "exampleField2".to_string(),
+//!             value: Some(Value::array(vec![
+//!                 Value::str("a"),
+//!                 Value::str("b"),
+//!                 Value::str("c")
+//!             ]))
+//!         }
+//!     ])
 //!     .build();
 //!
-//! let request_filter = RequestFilter {
-//!     filter_type: "isNotNull".to_string(),
-//!     attribute: "firstName".to_string()
-//! };
+//! let client = EspoApiClient::new("https://espocrm.example.com")
+//!     .set_secret_key("Your Secret Key")
+//!     .set_api_key("Your api key")
+//!     .build();
 //!
-//! let request_data = RequestData {
-//!     offset: 0,
-//!     filter: vec![request_filter],
-//!     order_by: "createdAt".to_string(),
-//!     order: "desc".to_string()
-//! };
-//!
-//! let result = client.request(Method::GET, "Contact".to_string(), Some(request_data));
+//! let result = client.request::<NoGeneric>(Method::GET, "Contact".to_string(), Some(params), None);
 //! ```
 //!
 //! These structs weren't pulled out of thin air. Everything you need to know about this is described [here](https://docs.espocrm.com/development/api-search-params/)
@@ -96,11 +84,24 @@ mod espocrm_types;
 mod serializer;
 
 pub use espocrm::*;
+pub use espocrm_types::*;
 
 #[cfg(test)]
 mod tests {
     use crate::espocrm::EspoApiClient;
+    use crate::espocrm_types::{Params, Order, Where, FilterType, Value};
+    use crate::serializer::serialize;
+    use std::hash::Hash;
+    use std::collections::HashSet;
+
     const URL: &str = "foo";
+
+    fn assert_eq_unsorted_vec<T: Eq + Hash>(a: &Vec<T>, b: &Vec<T>) -> bool {
+        let a: HashSet<_> = a.iter().collect();
+        let b: HashSet<_> = b.iter().collect();
+
+        a == b
+    }
 
     #[test]
     fn url() {
@@ -175,5 +176,92 @@ mod tests {
         let normalized_url = client.normalize_url("Contact".to_string());
 
         assert_eq!(format!("{}{}Contact", URL, client.url_path), normalized_url)
+    }
+
+    #[test]
+    fn serialize_basic() {
+        let params = Params::new()
+            .set_offset(0)
+            .set_order(Order::Desc)
+            .build();
+
+        let serialized = serialize(params).unwrap();
+        let serialized_split: Vec<_> = serialized.split("&").collect();
+
+        let correct = vec!["order=desc", "offset=0"];
+        assert!(assert_eq_unsorted_vec(&serialized_split, &correct))
+    }
+
+    #[test]
+    fn serialize_without_where_value() {
+        let params = Params::new()
+            .set_offset(0)
+            .set_where(vec![
+                Where {
+                    r#type: FilterType::IsTrue,
+                    attribute: "exampleBoolean".to_string(),
+                    value: None
+                }
+            ])
+            .build();
+
+        let serialized = serialize(params).unwrap();
+
+        assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean".to_string(), serialized);
+    }
+
+    #[test]
+    fn serialize_with_where_string_value() {
+        let params = Params::new()
+            .set_offset(0)
+            .set_where(vec![
+                Where {
+                    r#type: FilterType::IsTrue,
+                    attribute: "exampleBoolean".to_string(),
+                    value: Some(Value::str("a"))
+                }
+            ])
+            .build();
+
+        let serialized = serialize(params).unwrap();
+
+        assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean&where%5B0%5D%5Bvalue%5D=a".to_string(), serialized);
+    }
+
+    #[test]
+    fn serialize_with_where_array_value() {
+        let params = Params::new()
+            .set_offset(0)
+            .set_where(vec![
+                Where {
+                    r#type: FilterType::IsTrue,
+                    attribute: "exampleBoolean".to_string(),
+                    value: Some(Value::Array(Some(vec![Value::str("a"), Value::str("b"), Value::str("c")])))
+                }
+            ])
+            .build();
+
+        let serialized = serialize(params).unwrap();
+
+        /*
+            The left hand side has been created with the following PHP code:
+
+            $where = [
+                [
+                    'type' => 'isTrue',
+                    'attribute' => 'exampleBoolean',
+                    'value' => ['a', 'b', 'c']
+                ],
+            ];
+
+            $params = [
+                'offset' => 0,
+                'where' => $where
+            ];
+
+            echo http_build_query($params);
+
+         */
+        assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean&where%5B0%5D%5Bvalue%5D%5B0%5D=a&where%5B0%5D%5Bvalue%5D%5B1%5D=b&where%5B0%5D%5Bvalue%5D%5B2%5D=c".to_string(), serialized);
     }
 }

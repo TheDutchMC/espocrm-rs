@@ -1,11 +1,14 @@
 use reqwest::Method;
 use sha2::Sha256;
 use hmac::{Hmac, NewMac, Mac};
-use std::collections::HashMap;
-use std::any::Any;
 use serde::Serialize;
+use crate::espocrm_types::Params;
 
 type HmacSha256 = Hmac<Sha256>;
+
+/// Used to indicate the required GenericType is not needed
+/// Used when calling [request()](EspoApiClient::request) with the GET method
+pub type NoGeneric = u8;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EspoApiClient {
@@ -87,16 +90,17 @@ impl EspoApiClient {
     /// Make a request to EspoCRM
     /// For more information, see the [EspoCRM API Documentation](https://docs.espocrm.com/development/)
     ///
+    /// If you are making a GET request, you will still need to provide a type declaration for T. You can use the type NoGeneric for this.
+    ///
     /// * method: The HTTP method to be used. E.g GET or POST
     /// * action: On what EspoCRM Object should the action be performed on. E.g "Contact" or "Contact/ID". Essentially this is everything after "/api/v1/" in the URL.
-    /// * data: The data to send. If the request method is GET, this will automatically be serialized to a query parameter String. If the request method is POST, it will be serialized to JSON and send as the request body.
-    pub async fn request<T: Serialize + Clone>(&self, method: reqwest::Method, action: String, data: Option<T>) -> reqwest::Result<reqwest::Response> {
+    /// * data_get: The filter to use on a GET request. Will be serialized according to PHP's http_build_query function.
+    /// * data_post: The data to send on everything that is not a GET request. It will be serialized to JSON and send as the request body.
+    pub async fn request<T: Serialize + Clone>(&self, method: reqwest::Method, action: String, data_get: Option<Params>, data_post: Option<T>) -> reqwest::Result<reqwest::Response> {
         let mut url = self.normalize_url(action.clone());
 
-        url = if data.is_some() && method == Method::GET {
-            let data = data.clone().unwrap();
-
-            format!("{}?{}", url, String::from_utf8(serde_php::to_vec(&data).unwrap()).unwrap())
+        url = if data_get.is_some() && method == Method::GET {
+            format!("{}?{}", url, crate::serializer::serialize(data_get.unwrap()).unwrap())
         } else {
             url
         };
@@ -133,9 +137,9 @@ impl EspoApiClient {
             request_builder = request_builder.header("X-Api-Key", self.api_key.clone().unwrap());
         }
 
-        if data.is_some() {
+        if data_post.is_some() {
             if method != Method::GET {
-                request_builder = request_builder.json(&data.clone().unwrap());
+                request_builder = request_builder.json(&data_post.clone().unwrap());
                 request_builder = request_builder.header("Content-Type", "application/json");
             }
         }

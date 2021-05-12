@@ -1,21 +1,18 @@
-use std::collections::HashMap;
 use std::fmt;
 
+#[derive(Clone, Debug)]
+#[allow(unused)]
 pub enum Value {
-    Map(Option<HashMap<String, Value>>),
     String(Option<String>),
     Array(Option<Vec<Value>>),
     Integer(Option<i64>),
     Boolean(Option<bool>)
 }
 
+#[allow(unused)]
 impl Value {
     pub fn eq(&self, b: &Value) -> bool {
         std::mem::discriminant(self) == std::mem::discriminant(b)
-    }
-
-    pub fn map(v: HashMap<String, Value>) -> Self {
-        Value::Map(Some(v))
     }
 
     pub fn string(v: String) -> Self {
@@ -39,6 +36,8 @@ impl Value {
     }
 }
 
+#[derive(Clone)]
+#[allow(unused)]
 pub struct Params {
     pub offset: Option<i64>,
     pub max_size: Option<i64>,
@@ -46,7 +45,8 @@ pub struct Params {
     pub r#where: Option<Vec<Where>>,
     pub primary_filter: Option<String>,
     pub bool_filter_list: Option<Vec<String>>,
-    pub order_by: Option<OrderBy>
+    pub order: Option<Order>,
+    pub order_by: Option<String>
 }
 
 impl Default for Params {
@@ -55,6 +55,7 @@ impl Default for Params {
     }
 }
 
+#[allow(unused)]
 impl Params {
     pub fn new() -> Self {
         Self {
@@ -64,29 +65,78 @@ impl Params {
             r#where: None,
             primary_filter: None,
             bool_filter_list: None,
-            order_by: None
+            order_by: None,
+            order: None
         }
+    }
+
+    pub fn set_offset(&mut self, offset: i64) -> &mut Self {
+        self.offset = Some(offset);
+        self
+    }
+
+    pub fn set_max_size(&mut self, max_size: i64) -> &mut Self {
+        self.max_size = Some(max_size);
+        self
+    }
+
+    pub fn set_select(&mut self, select: &str) -> &mut Self {
+        self.select = Some(select.to_string());
+        self
+    }
+
+    pub fn set_where(&mut self, r#where: Vec<Where>) -> &mut Self {
+        self.r#where = Some(r#where);
+        self
+    }
+
+    pub fn set_primary_filter(&mut self, primary_filter: &str) -> &mut Self {
+        self.primary_filter = Some(primary_filter.to_string());
+        self
+    }
+
+    pub fn set_bool_filter_list(&mut self, bool_filter_list: Vec<String>) ->&mut Self {
+        self.bool_filter_list = Some(bool_filter_list);
+        self
+    }
+
+    pub fn set_order(&mut self, order: Order) -> &mut Self {
+        self.order = Some(order);
+        self
+    }
+
+    pub fn set_order_by(&mut self, order_by: &str) -> &mut Self {
+        self.order_by = Some(order_by.to_string());
+        self
+    }
+
+    pub fn build(&self) -> Self {
+        self.clone()
     }
 }
 
-#[derive(Debug)]
-pub enum OrderBy {
+#[derive(Debug, Clone)]
+#[allow(unused)]
+pub enum Order {
     Asc,
     Desc
 }
 
-impl fmt::Display for OrderBy {
+impl fmt::Display for Order {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
+#[derive(Clone, Debug)]
+#[allow(unused)]
 pub struct Where {
     pub r#type: FilterType,
     pub attribute: String,
     pub value: Option<Value>
 }
 
+#[allow(unused)]
 impl Where {
     pub fn new(filter_type: FilterType, attribute: &str, value: Option<Value>) -> Self {
         Where {
@@ -97,7 +147,8 @@ impl Where {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[allow(unused)]
 pub enum FilterType {
     Equals,
     NotEquals,
@@ -144,7 +195,7 @@ pub enum FilterType {
     Between,
     ArrayAnyOf,
     ArrayNoneOf,
-    ArrayAlOf,
+    ArrayAllOf,
     ArrayIsEmpty,
     ArrayIsNotEmpty,
 }
