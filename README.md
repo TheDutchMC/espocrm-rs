@@ -4,12 +4,7 @@ A Rust implementation of the EspoCRM PHP API Client. You can find this client [h
 For information on how to use this crate, refer to crates.io.
 
 ## Dependencies
-This crate depends on the following crates:
-- serde
-- serde_php
-- reqwest
-- rust-crypto
-- base64
+Refer to [crates.io](https://crates.io/crates/espocrm-rs/0.2.0/dependencies)
 
 ## Licence
 `espocrm-rs` is distributed under the terms of both the MIT license and the Apache License (Version 2.0).
