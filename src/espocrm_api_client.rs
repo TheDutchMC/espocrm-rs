@@ -105,8 +105,6 @@ impl EspoApiClient {
             url
         };
 
-        println!("{}", &url);
-
         let client = reqwest::Client::new();
         let mut request_builder = client.request(method.clone(), url);
 
@@ -117,7 +115,6 @@ impl EspoApiClient {
         //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
             let str = format!("{} /{}", method.clone().to_string(), action.clone());
-            println!("{}", &str);
 
             let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes()).expect("Unable to create Hmac instance. Is your key valid?");
             mac.update(str.as_bytes());
@@ -127,7 +124,6 @@ impl EspoApiClient {
                                     base64::encode(self.api_key.clone().unwrap().as_bytes()),
                                     "6", //: in base64, for some reason this works, and turning ':' into base64 does not.
                                     base64::encode(mac_result));
-            println!("auth: {}", &auth_part);
 
             request_builder = request_builder.header("X-Hmac-Authorization", auth_part);
 

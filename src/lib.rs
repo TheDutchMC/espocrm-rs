@@ -77,18 +77,44 @@
 //! let result = client.request::<NoGeneric>(Method::GET, "Contact".to_string(), Some(params), None);
 //! ```
 //!
-//! These structs weren't pulled out of thin air. Everything you need to know about this is described [here](https://docs.espocrm.com/development/api-search-params/)
+//! # Making a POST, PUT or DELETE request
+//! These are all similar in working. They'll serialize your data into json using Serde's serialize trait
+//!
+//! ```rust
+//! use espocrm_rs::EspoApiClient;
+//! use reqwest::Method;
+//! use serde::Serialize;
+//!
+//! #[derive(Serialize, Clone)]
+//! struct MyData {
+//!     some_value:         String,
+//!     some_other_value:   i64
+//! }
+//!
+//! let client = EspoApiClient::new("https://espocrm.example.com")
+//!     .set_secret_key("Your Secret Key")
+//!     .set_api_key("Your api key")
+//!     .build();
+//!
+//! let data = MyData {
+//!     some_value: "value".to_string(),
+//!     some_other_value: 10
+//! };
+//!
+//! let result = client.request(Method::POST, "Contact".to_string(), None, Some(data));
+//!```
+//!
 
-mod espocrm;
+mod espocrm_api_client;
 mod espocrm_types;
 mod serializer;
 
-pub use espocrm::*;
+pub use espocrm_api_client::*;
 pub use espocrm_types::*;
 
 #[cfg(test)]
 mod tests {
-    use crate::espocrm::EspoApiClient;
+    use crate::espocrm_api_client::EspoApiClient;
     use crate::espocrm_types::{Params, Order, Where, FilterType, Value};
     use crate::serializer::serialize;
     use std::hash::Hash;
@@ -260,7 +286,6 @@ mod tests {
             ];
 
             echo http_build_query($params);
-
          */
         assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean&where%5B0%5D%5Bvalue%5D%5B0%5D=a&where%5B0%5D%5Bvalue%5D%5B1%5D=b&where%5B0%5D%5Bvalue%5D%5B2%5D=c".to_string(), serialized);
     }

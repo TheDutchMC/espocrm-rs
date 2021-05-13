@@ -1,7 +1,7 @@
 # espocrm-rs
 A Rust implementation of the EspoCRM PHP API Client. You can find this client [here](https://docs.espocrm.com/development/api-client-php/).
 
-For information on how to use this crate, refer to crates.io.
+For information on how to use this crate, refer to [docs.rs](https://docs.rs/espocrm-rs/0.2.0/espocrm_rs/)
 
 ## Dependencies
 Refer to [crates.io](https://crates.io/crates/espocrm-rs/0.2.0/dependencies)
