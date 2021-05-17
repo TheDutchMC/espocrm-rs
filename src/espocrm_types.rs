@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(unused)]
 pub enum Value {
     String(Option<String>),
@@ -36,7 +36,7 @@ impl Value {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(unused)]
 pub struct Params {
     pub offset: Option<i64>,
@@ -115,7 +115,7 @@ impl Params {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(unused)]
 pub enum Order {
     Asc,
@@ -128,7 +128,7 @@ impl fmt::Display for Order {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(unused)]
 pub struct Where {
     pub r#type: FilterType,
@@ -147,7 +147,7 @@ impl Where {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[allow(unused)]
 pub enum FilterType {
     Equals,

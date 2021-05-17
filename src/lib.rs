@@ -46,8 +46,7 @@
 //!
 //! Most of these things are laid out pretty well in the EspoCRM API documentation [here](https://docs.espocrm.com/development/api/)
 //! ```rust
-//! use espocrm_rs::{EspoApiClient, Params, Where, FilterType, Value, NoGeneric};
-//! use reqwest::Method;
+//! use espocrm_rs::{EspoApiClient, Params, Where, FilterType, Value, NoGeneric, Method};
 //!
 //! let params = Params::default()
 //!     .set_offset(0)
@@ -74,15 +73,14 @@
 //!     .set_api_key("Your api key")
 //!     .build();
 //!
-//! let result = client.request::<NoGeneric>(Method::GET, "Contact".to_string(), Some(params), None);
+//! let result = client.request::<NoGeneric, &str>(Method::Get, "Contact", Some(params), None);
 //! ```
 //!
 //! # Making a POST, PUT or DELETE request
 //! These are all similar in working. They'll serialize your data into json using Serde's serialize trait
 //!
 //! ```rust
-//! use espocrm_rs::EspoApiClient;
-//! use reqwest::Method;
+//! use espocrm_rs::{EspoApiClient, Method};
 //! use serde::Serialize;
 //!
 //! #[derive(Serialize, Clone)]
@@ -101,7 +99,7 @@
 //!     some_other_value: 10
 //! };
 //!
-//! let result = client.request(Method::POST, "Contact".to_string(), None, Some(data));
+//! let result = client.request(Method::Post, "Contact", None, Some(data));
 //!```
 //!
 

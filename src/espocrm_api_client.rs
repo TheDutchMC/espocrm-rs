@@ -1,4 +1,3 @@
-use reqwest::Method;
 use sha2::Sha256;
 use hmac::{Hmac, NewMac, Mac};
 use serde::Serialize;
@@ -8,7 +7,26 @@ type HmacSha256 = Hmac<Sha256>;
 
 /// Used to indicate the required GenericType is not needed
 /// Used when calling [request()](EspoApiClient::request) with the GET method
-pub type NoGeneric = u8;
+pub type NoGeneric = ();
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Method {
+    Get,
+    Post,
+    Put,
+    Delete
+}
+
+impl From<Method> for reqwest::Method {
+    fn from(a: Method) -> reqwest::Method {
+        match a {
+            Method::Get => reqwest::Method::GET,
+            Method::Post => reqwest::Method::POST,
+            Method::Put => reqwest::Method::PUT,
+            Method::Delete => reqwest::Method::DELETE
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EspoApiClient {
@@ -96,17 +114,24 @@ impl EspoApiClient {
     /// * action: On what EspoCRM Object should the action be performed on. E.g "Contact" or "Contact/ID". Essentially this is everything after "/api/v1/" in the URL.
     /// * data_get: The filter to use on a GET request. Will be serialized according to PHP's http_build_query function.
     /// * data_post: The data to send on everything that is not a GET request. It will be serialized to JSON and send as the request body.
-    pub async fn request<T: Serialize + Clone>(&self, method: reqwest::Method, action: String, data_get: Option<Params>, data_post: Option<T>) -> reqwest::Result<reqwest::Response> {
-        let mut url = self.normalize_url(action.clone());
+    pub async fn request<T, S>(&self, method: Method, action: S, data_get: Option<Params>, data_post: Option<T>) -> reqwest::Result<reqwest::Response>
+        where
+            T: Serialize + Clone,
+            S: AsRef<str>
+    {
 
-        url = if data_get.is_some() && method == Method::GET {
+        let action = action.as_ref().to_string();
+        let mut url = self.normalize_url(action.clone());
+        let reqwest_method = reqwest::Method::from(method);
+
+        url = if data_get.is_some() && reqwest_method == reqwest::Method::GET {
             format!("{}?{}", url, crate::serializer::serialize(data_get.unwrap()).unwrap())
         } else {
             url
         };
 
         let client = reqwest::Client::new();
-        let mut request_builder = client.request(method.clone(), url);
+        let mut request_builder = client.request(reqwest_method.clone(), url);
 
         //Basic authentication
         if self.username.is_some() && self.password.is_some() {
@@ -114,7 +139,7 @@ impl EspoApiClient {
 
         //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
-            let str = format!("{} /{}", method.clone().to_string(), action.clone());
+            let str = format!("{} /{}", reqwest_method.clone().to_string(), action.clone());
 
             let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes()).expect("Unable to create Hmac instance. Is your key valid?");
             mac.update(str.as_bytes());
@@ -134,7 +159,7 @@ impl EspoApiClient {
         }
 
         if data_post.is_some() {
-            if method != Method::GET {
+            if reqwest_method != reqwest::Method::GET {
                 request_builder = request_builder.json(&data_post.clone().unwrap());
                 request_builder = request_builder.header("Content-Type", "application/json");
             }

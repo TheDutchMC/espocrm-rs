@@ -9,3 +9,9 @@ Initial release
 - Removed println! statements that were left in accidentally
 - Renamed the `espocrm` module to `espo_api_client` (Has no effect on users of the crate)
 - Removed unneeded dependency on `serde_php`, this should have been removed in 0.2.0
+
+## 0.3.0
+- Added Method enum so end users don't have to include reqwest in their `Cargo.toml`
+- Added missing `#[derive(Debug, Eq, PartialEq, Clone)]` to the Enums and Structs that were missing them
+- Switched to using `AsRef<str>` instead of String for `EspoApiClient::request()`
+- Type `NoGeneric` is now `()` instead of `u8`, that just makes way more sense
