@@ -57,7 +57,9 @@ impl EspoApiClient {
     }
 
     /// Set the URL where EspoCRM is located.
-    pub fn set_url<'a>(&'a mut self, url: &'a str) -> &'a mut EspoApiClient {
+    pub fn set_url<S: AsRef<str>>(&mut self, url: S) -> &mut EspoApiClient {
+        let url = url.as_ref();
+
         let url = if url.ends_with("/") {
             let mut url = url.to_string();
             url.pop();
@@ -73,36 +75,36 @@ impl EspoApiClient {
     /// Set the username to use for authentication.
     /// If you use this you must also call [`Self::set_password()`]
     /// It is not recommended that you use this. Instead you should use API Key authorization or HMAC
-    pub fn set_username<'a>(&'a mut self, username: &'a str) -> &'a mut EspoApiClient {
-        self.username = Some(username.to_string());
+    pub fn set_username<S: AsRef<str>>(&mut self, username: S) -> &mut EspoApiClient {
+        self.username = Some(username.as_ref().to_string());
         self
     }
 
     /// Set the password to use for authentication
     /// If you use this you must also call [`Self::set_username()`]
     /// It is not recommended that you use this. Instead you should use API Key authorization or HMAC authorization
-    pub fn set_password<'a>(&'a mut self, password: &'a str) -> &'a mut EspoApiClient {
-        self.password = Some(password.to_string());
+    pub fn set_password<S: AsRef<str>>(&mut self, password: S) -> &mut EspoApiClient {
+        self.password = Some(password.as_ref().to_string());
         self
     }
 
     /// Set the API Key to use for authorization
     /// If you only provide the API key, and not the secret_key, API Key authorization will be used.
     /// If you wish to use HMAC authorization, you must also call [`Self::set_secret_key()`]
-    pub fn set_api_key<'a>(&'a mut self, api_key: &'a str) -> &'a mut EspoApiClient {
-        self.api_key = Some(api_key.to_string());
+    pub fn set_api_key<S: AsRef<str>>(&mut self, api_key: S) -> &mut EspoApiClient {
+        self.api_key = Some(api_key.as_ref().to_string());
         self
     }
 
     /// Set the Secret Key to use for HMAC authorization
     /// If you use this you must also call [`Self::set_api_key()`]
-    pub fn set_secret_key<'a>(&'a mut self, secret_key: &'a str) -> &'a mut EspoApiClient {
-        self.secret_key = Some(secret_key.to_string());
+    pub fn set_secret_key<S: AsRef<str>>(&mut self, secret_key: S) -> &mut EspoApiClient {
+        self.secret_key = Some(secret_key.as_ref().to_string());
         self
     }
 
-    pub(crate) fn normalize_url(&self, action: String) -> String {
-        format!("{}{}{}", self.url, self.url_path, action)
+    pub(crate) fn normalize_url<S: AsRef<str>>(&self, action: S) -> String {
+        format!("{}{}{}", self.url, self.url_path, action.as_ref())
     }
 
     /// Make a request to EspoCRM
@@ -117,11 +119,9 @@ impl EspoApiClient {
     pub async fn request<T, S>(&self, method: Method, action: S, data_get: Option<Params>, data_post: Option<T>) -> reqwest::Result<reqwest::Response>
         where
             T: Serialize + Clone,
-            S: AsRef<str>
-    {
+            S: AsRef<str> {
 
-        let action = action.as_ref().to_string();
-        let mut url = self.normalize_url(action.clone());
+        let mut url = self.normalize_url(&action.as_ref());
         let reqwest_method = reqwest::Method::from(method);
 
         url = if data_get.is_some() && reqwest_method == reqwest::Method::GET {
@@ -139,7 +139,7 @@ impl EspoApiClient {
 
         //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
-            let str = format!("{} /{}", reqwest_method.clone().to_string(), action.clone());
+            let str = format!("{} /{}", reqwest_method.clone().to_string(), action.as_ref());
 
             let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes()).expect("Unable to create Hmac instance. Is your key valid?");
             mac.update(str.as_bytes());

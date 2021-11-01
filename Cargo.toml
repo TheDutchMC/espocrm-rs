@@ -9,12 +9,21 @@ description = "A Rust implementation of the EspoCRM PHP API Client"
 readme = "README.md"
 
 [dependencies]
-serde = "1.0.125"
-reqwest = { version = "0.11.3", features = ["json"]}
-hmac = "0.11.0"
-base64 = "0.13.0"
-urlencoding = "1.1.1"
-sha2 = "0.9.4"
+serde = "^1.0.125"
+hmac = "^0.11.0"
+base64 = "^0.13.0"
+urlencoding = "^1.1.1"
+sha2 = "^0.9.4"
+
+[dependencies.reqwest]
+version = "^0.11.6"
+default-features = false
+features = ["json"]
+
+[features]
+default = ["rustls-rls"]
+rustls-rls = ["reqwest/rustls-tls"]
+nativetls-tls = ["reqwest/native-tls"]
 
 [dev-dependencies]
 serde = { version = "1.0.125", features = ["derive"]}
