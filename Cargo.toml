@@ -4,7 +4,7 @@ version = "0.3.0"
 authors = ["Tobias de Bruijn <t.debruijn@array21.dev>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/TheDutchMC/espocrm-rs"
+repository = "https://github.com/TobiasDeBruijn/espocrm-rs"
 description = "A Rust implementation of the EspoCRM PHP API Client"
 readme = "README.md"
 
