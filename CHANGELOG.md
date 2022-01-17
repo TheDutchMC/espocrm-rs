@@ -15,3 +15,7 @@ Initial release
 - Added missing `#[derive(Debug, Eq, PartialEq, Clone)]` to the Enums and Structs that were missing them
 - Switched to using `AsRef<str>` instead of String for `EspoApiClient::request()`
 - Type `NoGeneric` is now `()` instead of `u8`, that just makes way more sense
+
+## 0.3.1
+- More flexible dependency requirments
+- Removed rustls and openssl features
