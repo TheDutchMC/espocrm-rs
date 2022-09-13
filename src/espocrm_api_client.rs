@@ -1,7 +1,10 @@
-use sha2::Sha256;
-use hmac::{Hmac, NewMac, Mac};
-use serde::Serialize;
 use crate::espocrm_types::Params;
+use crate::{debug_if, trace_if};
+use hmac::{Hmac, Mac};
+use serde::Serialize;
+use sha2::Sha256;
+use std::fmt::Debug;
+use tap::TapFallible;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -14,7 +17,7 @@ pub enum Method {
     Get,
     Post,
     Put,
-    Delete
+    Delete,
 }
 
 impl From<Method> for reqwest::Method {
@@ -23,23 +26,22 @@ impl From<Method> for reqwest::Method {
             Method::Get => reqwest::Method::GET,
             Method::Post => reqwest::Method::POST,
             Method::Put => reqwest::Method::PUT,
-            Method::Delete => reqwest::Method::DELETE
+            Method::Delete => reqwest::Method::DELETE,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EspoApiClient {
-    pub(crate) url:                    String,
-    pub(crate) username:               Option<String>,
-    pub(crate) password:               Option<String>,
-    pub(crate) api_key:                Option<String>,
-    pub(crate) secret_key:             Option<String>,
-    pub(crate) url_path:               String,
+    pub(crate) url: String,
+    pub(crate) username: Option<String>,
+    pub(crate) password: Option<String>,
+    pub(crate) api_key: Option<String>,
+    pub(crate) secret_key: Option<String>,
+    pub(crate) url_path: String,
 }
 
 impl EspoApiClient {
-
     /// Create an instance of EspoApiClient.
     pub fn new(url: &str) -> EspoApiClient {
         EspoApiClient {
@@ -48,7 +50,7 @@ impl EspoApiClient {
             password: None,
             api_key: None,
             secret_key: None,
-            url_path: "/api/v1/".to_string()
+            url_path: "/api/v1/".to_string(),
         }
     }
 
@@ -116,16 +118,29 @@ impl EspoApiClient {
     /// * action: On what EspoCRM Object should the action be performed on. E.g "Contact" or "Contact/ID". Essentially this is everything after "/api/v1/" in the URL.
     /// * data_get: The filter to use on a GET request. Will be serialized according to PHP's http_build_query function.
     /// * data_post: The data to send on everything that is not a GET request. It will be serialized to JSON and send as the request body.
-    pub async fn request<T, S>(&self, method: Method, action: S, data_get: Option<Params>, data_post: Option<T>) -> reqwest::Result<reqwest::Response>
-        where
-            T: Serialize + Clone,
-            S: AsRef<str> {
-
+    #[cfg_attr(feature = "tracing", tracing::instrument(skip(data_get, data_post)))]
+    pub async fn request<T, S>(
+        &self,
+        method: Method,
+        action: S,
+        data_get: Option<Params>,
+        data_post: Option<T>,
+    ) -> reqwest::Result<reqwest::Response>
+    where
+        T: Serialize + Clone + Debug,
+        S: AsRef<str> + Debug,
+    {
         let mut url = self.normalize_url(&action.as_ref());
+        debug_if!("Using URL {url} to request from EspoCRM");
+
         let reqwest_method = reqwest::Method::from(method);
 
         url = if data_get.is_some() && reqwest_method == reqwest::Method::GET {
-            format!("{}?{}", url, crate::serializer::serialize(data_get.unwrap()).unwrap())
+            format!(
+                "{}?{}",
+                url,
+                crate::serializer::serialize(data_get.unwrap()).unwrap()
+            )
         } else {
             url
         };
@@ -135,26 +150,38 @@ impl EspoApiClient {
 
         //Basic authentication
         if self.username.is_some() && self.password.is_some() {
-            request_builder = request_builder.basic_auth(self.username.clone().unwrap(), self.password.clone());
+            trace_if!("Using basic authentication");
+            request_builder =
+                request_builder.basic_auth(self.username.clone().unwrap(), self.password.clone());
 
         //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
-            let str = format!("{} /{}", reqwest_method.clone().to_string(), action.as_ref());
+            trace_if!("Using HMAC authentication.");
 
-            let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes()).expect("Unable to create Hmac instance. Is your key valid?");
+            let str = format!(
+                "{} /{}",
+                reqwest_method.clone().to_string(),
+                action.as_ref()
+            );
+
+            let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes())
+                .expect("Unable to create Hmac instance. Is your key valid?");
             mac.update(str.as_bytes());
             let mac_result = mac.finalize().into_bytes();
 
-            let auth_part = format!("{}{}{}",
-                                    base64::encode(self.api_key.clone().unwrap().as_bytes()),
-                                    "6", //: in base64, for some reason this works, and turning ':' into base64 does not.
-                                    base64::encode(mac_result));
+            let auth_part = format!(
+                "{}{}{}",
+                base64::encode(self.api_key.clone().unwrap().as_bytes()),
+                "6", //: in base64, for some reason this works, and turning ':' into base64 does not.
+                base64::encode(mac_result)
+            );
 
             request_builder = request_builder.header("X-Hmac-Authorization", auth_part);
 
-
         //Basic api key authentication
         } else if self.api_key.is_some() {
+            trace_if!("Authenticating with an API key");
+
             request_builder = request_builder.header("X-Api-Key", self.api_key.clone().unwrap());
         }
 
@@ -165,7 +192,12 @@ impl EspoApiClient {
             }
         }
 
-        let response = request_builder.send();
-        response.await
+        trace_if!("Sending request to EspoCRM");
+        #[allow(unused)]
+        request_builder
+            .send()
+            .await
+            .tap_err(|x| debug_if!("Got an error from EspoCRM: {x}"))
+            .tap_ok(|x| debug_if!("Got response from EspoCRM with status code: {}", x.status()))
     }
 }

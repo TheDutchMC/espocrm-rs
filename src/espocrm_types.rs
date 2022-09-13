@@ -6,7 +6,7 @@ pub enum Value {
     String(Option<String>),
     Array(Option<Vec<Value>>),
     Integer(Option<i64>),
-    Boolean(Option<bool>)
+    Boolean(Option<bool>),
 }
 
 #[allow(unused)]
@@ -46,7 +46,7 @@ pub struct Params {
     pub primary_filter: Option<String>,
     pub bool_filter_list: Option<Vec<String>>,
     pub order: Option<Order>,
-    pub order_by: Option<String>
+    pub order_by: Option<String>,
 }
 
 impl Default for Params {
@@ -66,7 +66,7 @@ impl Params {
             primary_filter: None,
             bool_filter_list: None,
             order_by: None,
-            order: None
+            order: None,
         }
     }
 
@@ -95,7 +95,7 @@ impl Params {
         self
     }
 
-    pub fn set_bool_filter_list(&mut self, bool_filter_list: Vec<String>) ->&mut Self {
+    pub fn set_bool_filter_list(&mut self, bool_filter_list: Vec<String>) -> &mut Self {
         self.bool_filter_list = Some(bool_filter_list);
         self
     }
@@ -119,7 +119,7 @@ impl Params {
 #[allow(unused)]
 pub enum Order {
     Asc,
-    Desc
+    Desc,
 }
 
 impl fmt::Display for Order {
@@ -133,7 +133,7 @@ impl fmt::Display for Order {
 pub struct Where {
     pub r#type: FilterType,
     pub attribute: String,
-    pub value: Option<Value>
+    pub value: Option<Value>,
 }
 
 #[allow(unused)]
@@ -142,7 +142,7 @@ impl Where {
         Where {
             r#type: filter_type,
             attribute: attribute.to_string(),
-            value
+            value,
         }
     }
 }

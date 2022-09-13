@@ -106,6 +106,7 @@
 mod espocrm_api_client;
 mod espocrm_types;
 mod serializer;
+mod tracing_if;
 
 pub use espocrm_api_client::*;
 pub use espocrm_types::*;
@@ -113,10 +114,10 @@ pub use espocrm_types::*;
 #[cfg(test)]
 mod tests {
     use crate::espocrm_api_client::EspoApiClient;
-    use crate::espocrm_types::{Params, Order, Where, FilterType, Value};
+    use crate::espocrm_types::{FilterType, Order, Params, Value, Where};
     use crate::serializer::serialize;
-    use std::hash::Hash;
     use std::collections::HashSet;
+    use std::hash::Hash;
 
     const URL: &str = "foo";
 
@@ -135,36 +136,28 @@ mod tests {
 
     #[test]
     fn username() {
-        let client = EspoApiClient::new(URL)
-            .set_username("bar")
-            .build();
+        let client = EspoApiClient::new(URL).set_username("bar").build();
 
         assert_eq!(Some("bar".to_string()), client.username);
     }
 
     #[test]
     fn password() {
-        let client = EspoApiClient::new(URL)
-            .set_password("bar")
-            .build();
+        let client = EspoApiClient::new(URL).set_password("bar").build();
 
         assert_eq!(Some("bar".to_string()), client.password);
     }
 
     #[test]
     fn api_key() {
-        let client = EspoApiClient::new(URL)
-            .set_api_key("bar")
-            .build();
+        let client = EspoApiClient::new(URL).set_api_key("bar").build();
 
         assert_eq!(Some("bar".to_string()), client.api_key);
     }
 
     #[test]
     fn secret_key() {
-        let client = EspoApiClient::new(URL)
-            .set_secret_key("bar")
-            .build();
+        let client = EspoApiClient::new(URL).set_secret_key("bar").build();
 
         assert_eq!(Some("bar".to_string()), client.secret_key);
     }
@@ -187,9 +180,7 @@ mod tests {
 
     #[test]
     fn modify_url() {
-        let client = EspoApiClient::new(URL)
-            .set_url("bar")
-            .build();
+        let client = EspoApiClient::new(URL).set_url("bar").build();
 
         assert_eq!("bar".to_string(), client.url)
     }
@@ -204,10 +195,7 @@ mod tests {
 
     #[test]
     fn serialize_basic() {
-        let params = Params::new()
-            .set_offset(0)
-            .set_order(Order::Desc)
-            .build();
+        let params = Params::new().set_offset(0).set_order(Order::Desc).build();
 
         let serialized = serialize(params).unwrap();
         let serialized_split: Vec<_> = serialized.split("&").collect();
@@ -220,31 +208,31 @@ mod tests {
     fn serialize_without_where_value() {
         let params = Params::new()
             .set_offset(0)
-            .set_where(vec![
-                Where {
-                    r#type: FilterType::IsTrue,
-                    attribute: "exampleBoolean".to_string(),
-                    value: None
-                }
-            ])
+            .set_where(vec![Where {
+                r#type: FilterType::IsTrue,
+                attribute: "exampleBoolean".to_string(),
+                value: None,
+            }])
             .build();
 
         let serialized = serialize(params).unwrap();
 
-        assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean".to_string(), serialized);
+        assert_eq!(
+            "offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean"
+                .to_string(),
+            serialized
+        );
     }
 
     #[test]
     fn serialize_with_where_string_value() {
         let params = Params::new()
             .set_offset(0)
-            .set_where(vec![
-                Where {
-                    r#type: FilterType::IsTrue,
-                    attribute: "exampleBoolean".to_string(),
-                    value: Some(Value::str("a"))
-                }
-            ])
+            .set_where(vec![Where {
+                r#type: FilterType::IsTrue,
+                attribute: "exampleBoolean".to_string(),
+                value: Some(Value::str("a")),
+            }])
             .build();
 
         let serialized = serialize(params).unwrap();
@@ -256,35 +244,37 @@ mod tests {
     fn serialize_with_where_array_value() {
         let params = Params::new()
             .set_offset(0)
-            .set_where(vec![
-                Where {
-                    r#type: FilterType::IsTrue,
-                    attribute: "exampleBoolean".to_string(),
-                    value: Some(Value::Array(Some(vec![Value::str("a"), Value::str("b"), Value::str("c")])))
-                }
-            ])
+            .set_where(vec![Where {
+                r#type: FilterType::IsTrue,
+                attribute: "exampleBoolean".to_string(),
+                value: Some(Value::Array(Some(vec![
+                    Value::str("a"),
+                    Value::str("b"),
+                    Value::str("c"),
+                ]))),
+            }])
             .build();
 
         let serialized = serialize(params).unwrap();
 
         /*
-            The left hand side has been created with the following PHP code:
+           The left hand side has been created with the following PHP code:
 
-            $where = [
-                [
-                    'type' => 'isTrue',
-                    'attribute' => 'exampleBoolean',
-                    'value' => ['a', 'b', 'c']
-                ],
-            ];
+           $where = [
+               [
+                   'type' => 'isTrue',
+                   'attribute' => 'exampleBoolean',
+                   'value' => ['a', 'b', 'c']
+               ],
+           ];
 
-            $params = [
-                'offset' => 0,
-                'where' => $where
-            ];
+           $params = [
+               'offset' => 0,
+               'where' => $where
+           ];
 
-            echo http_build_query($params);
-         */
+           echo http_build_query($params);
+        */
         assert_eq!("offset=0&where%5B0%5D%5Btype%5D=isTrue&where%5B0%5D%5Battribute%5D=exampleBoolean&where%5B0%5D%5Bvalue%5D%5B0%5D=a&where%5B0%5D%5Bvalue%5D%5B1%5D=b&where%5B0%5D%5Bvalue%5D%5B2%5D=c".to_string(), serialized);
     }
 }

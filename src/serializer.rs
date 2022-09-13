@@ -105,9 +105,17 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
                 builder
             };
 
-            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][type]", i)), lower_camel_case_type));
+            builder.push_str(&format!(
+                "{}={}",
+                &encode(&format!("where[{}][type]", i)),
+                lower_camel_case_type
+            ));
             builder.push('&');
-            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][attribute]", i)), v.attribute));
+            builder.push_str(&format!(
+                "{}={}",
+                &encode(&format!("where[{}][attribute]", i)),
+                v.attribute
+            ));
 
             if v.value.is_some() {
                 let val_unwrapped = v.value.unwrap();
@@ -118,47 +126,45 @@ pub fn serialize(input: Params) -> Result<String, &'static str> {
                         let mut j = 0;
                         for elem in arr_1 {
                             let elem_v_inner = match elem {
-                                Value::String(inner) => {
-                                    inner.unwrap()
-                                }
-                                Value::Integer(inner) => {
-                                    inner.unwrap().to_string()
-                                }
-                                Value::Boolean(inner) => {
-                                    inner.unwrap().to_string()
-                                }
+                                Value::String(inner) => inner.unwrap(),
+                                Value::Integer(inner) => inner.unwrap().to_string(),
+                                Value::Boolean(inner) => inner.unwrap().to_string(),
                                 Value::Array(_) => {
                                     unimplemented!();
                                 }
                             };
 
                             builder.push('&');
-                            builder.push_str(&format!("{}={}", &encode(&format!("where[{}][value][{}]", i, j)), elem_v_inner));
+                            builder.push_str(&format!(
+                                "{}={}",
+                                &encode(&format!("where[{}][value][{}]", i, j)),
+                                elem_v_inner
+                            ));
 
-                            j+=1;
+                            j += 1;
                         }
                     }
                     _ => {
                         let elem_v_inner = match val_unwrapped {
-                            Value::String(inner) => {
-                                inner.unwrap()
+                            Value::String(inner) => inner.unwrap(),
+                            Value::Integer(inner) => inner.unwrap().to_string(),
+                            Value::Boolean(inner) => inner.unwrap().to_string(),
+                            _ => {
+                                panic!("Unreachable")
                             }
-                            Value::Integer(inner) => {
-                                inner.unwrap().to_string()
-                            }
-                            Value::Boolean(inner) => {
-                                inner.unwrap().to_string()
-                            }
-                            _ => {panic!("Unreachable")}
                         };
 
                         builder.push('&');
-                        builder.push_str(&format!("{}={}", &encode(&format!("where[{}][value]", i)), elem_v_inner));
+                        builder.push_str(&format!(
+                            "{}={}",
+                            &encode(&format!("where[{}][value]", i)),
+                            elem_v_inner
+                        ));
                     }
                 }
             }
 
-            i+=1;
+            i += 1;
         }
     }
 
