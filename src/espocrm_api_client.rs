@@ -4,6 +4,7 @@ use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
 use std::fmt::Debug;
+use reqwest::{Client, RequestBuilder};
 use tap::TapFallible;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -109,6 +110,54 @@ impl EspoApiClient {
         format!("{}{}{}", self.url, self.url_path, action.as_ref())
     }
 
+    /// Make a POST request to EspoCRM to create an entity.
+    /// This request will skip duplicate checks, which would otherwhise result in a HTTP `409`.
+    ///
+    /// For information about what the `data` and `action` should be, refer to the [EspoCRM API Documentation](https://docs.espocrm.com/development/).
+    ///
+    /// # Errors
+    ///
+    /// If the request fails
+    pub async fn create_allow_duplicates<T, S>(&self, action: S, data: T) -> reqwest::Result<reqwest::Response> where T: Serialize + Clone + Debug, S: AsRef<str> {
+        let url = self.normalize_url(&action);
+        let client = Client::new();
+        let mut request = client.post(url);
+        request = self.configure_client_auth(request, reqwest::Method::POST, action.as_ref());
+
+        #[allow(unused)] // `x` in the tap_ functions
+        request
+            .header("X-Skip-Duplicate-Check", "true")
+            .json(&data)
+            .send()
+            .await
+            .tap_err(|x| debug_if!("Got an error from EspoCRM: {x}"))
+            .tap_ok(|x| debug_if!("Got response from EspoCRM with status code: {}", x.status()))
+
+    }
+
+    /// Make a POST request to EspoCRM to create an entity.
+    /// This request will perform duplicate checks and return a HTTP `409` if one is found. If you want to avoid this use [Self::create_allow_duplicates].
+    ///
+    /// For information about what the `data` and `action` should be, refer to the [EspoCRM API Documentation](https://docs.espocrm.com/development/).
+    ///
+    /// # Errors
+    ///
+    /// If the request fails
+    pub async fn create<T, S>(&self, action: S, data: T) -> reqwest::Result<reqwest::Response> where T: Serialize + Clone + Debug, S: AsRef<str> {
+        let url = self.normalize_url(&action.as_ref());
+        let client = Client::new();
+        let mut request = client.post(url);
+        request = self.configure_client_auth(request, reqwest::Method::POST, action.as_ref());
+
+        #[allow(unused)] // `x` in the tap_ functions
+        request
+            .json(&data)
+            .send()
+            .await
+            .tap_err(|x| debug_if!("Got an error from EspoCRM: {x}"))
+            .tap_ok(|x| debug_if!("Got response from EspoCRM with status code: {}", x.status()))
+    }
+
     /// Make a request to EspoCRM
     /// For more information, see the [EspoCRM API Documentation](https://docs.espocrm.com/development/)
     ///
@@ -145,23 +194,41 @@ impl EspoApiClient {
             url
         };
 
-        let client = reqwest::Client::new();
+        let client = Client::new();
         let mut request_builder = client.request(reqwest_method.clone(), url);
+        request_builder = self.configure_client_auth(request_builder, reqwest_method.clone(), action.as_ref());
 
+        if data_post.is_some() {
+            if reqwest_method != reqwest::Method::GET {
+                request_builder = request_builder.json(&data_post.clone().unwrap());
+                request_builder = request_builder.header("Content-Type", "application/json");
+            }
+        }
+
+        trace_if!("Sending request to EspoCRM");
+        #[allow(unused)]
+        request_builder
+            .send()
+            .await
+            .tap_err(|x| debug_if!("Got an error from EspoCRM: {x}"))
+            .tap_ok(|x| debug_if!("Got response from EspoCRM with status code: {}", x.status()))
+    }
+
+    fn configure_client_auth(&self, mut request_builder: RequestBuilder, request_method: reqwest::Method, action: &str) -> RequestBuilder {
         //Basic authentication
         if self.username.is_some() && self.password.is_some() {
             trace_if!("Using basic authentication");
             request_builder =
                 request_builder.basic_auth(self.username.clone().unwrap(), self.password.clone());
 
-        //HMAC authentication
+            //HMAC authentication
         } else if self.api_key.is_some() && self.secret_key.is_some() {
             trace_if!("Using HMAC authentication.");
 
             let str = format!(
                 "{} /{}",
-                reqwest_method.clone().to_string(),
-                action.as_ref()
+                request_method.clone().to_string(),
+                action,
             );
 
             let mut mac = HmacSha256::new_from_slice(self.secret_key.clone().unwrap().as_bytes())
@@ -178,26 +245,13 @@ impl EspoApiClient {
 
             request_builder = request_builder.header("X-Hmac-Authorization", auth_part);
 
-        //Basic api key authentication
+            //Basic api key authentication
         } else if self.api_key.is_some() {
             trace_if!("Authenticating with an API key");
 
             request_builder = request_builder.header("X-Api-Key", self.api_key.clone().unwrap());
         }
 
-        if data_post.is_some() {
-            if reqwest_method != reqwest::Method::GET {
-                request_builder = request_builder.json(&data_post.clone().unwrap());
-                request_builder = request_builder.header("Content-Type", "application/json");
-            }
-        }
-
-        trace_if!("Sending request to EspoCRM");
-        #[allow(unused)]
         request_builder
-            .send()
-            .await
-            .tap_err(|x| debug_if!("Got an error from EspoCRM: {x}"))
-            .tap_ok(|x| debug_if!("Got response from EspoCRM with status code: {}", x.status()))
     }
 }

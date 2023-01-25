@@ -103,6 +103,8 @@
 //!```
 //!
 
+extern crate core;
+
 mod espocrm_api_client;
 mod espocrm_types;
 mod serializer;

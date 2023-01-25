@@ -1,3 +1,6 @@
+## 0.4.1 (2023-01-25)
+- Added functions `create` and `create_allow_duplicates`
+
 ## 0.4.0 (2022-9-13)
 - Added `tracing` support as an optional feature
 - Updated dependencies
